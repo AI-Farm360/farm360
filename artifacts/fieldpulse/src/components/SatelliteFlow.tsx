@@ -5,6 +5,7 @@ import {
   Satellite, CloudSun, Sprout, Brain, MessageSquareText,
   Thermometer, Droplets,
 } from 'lucide-react';
+import SectionTitle from '@/components/SectionTitle';
 
 const steps = [
   {
@@ -92,17 +93,22 @@ const steps = [
 
 export default function SatelliteFlow() {
   return (
-    <section className="max-w-4xl mx-auto px-6">
+    <section className="max-w-6xl mx-auto px-6">
+      <SectionTitle
+        title="From raw field signals to a"
+        italicText="clear farmer action."
+        subtitle=""
+      />
       <div className="bg-white border border-[#ECE8E1] rounded-3xl p-8 md:p-12 shadow-[0_12px_40px_rgba(23,23,23,0.02)]">
         {/* Section header */}
         <div className="text-center space-y-2 mb-10">
+          
           <h2 className="font-serif text-2xl md:text-3xl font-light text-[#171717] tracking-tight">
-            From raw field signals to a{' '}
-            <span className="italic text-[#6B6B6B]/70">clear farmer action.</span>
+            
+            <span className="italic text-[#16a34a]/70"></span>
           </h2>
           <p className="text-xs md:text-sm text-[#6B6B6B] max-w-xl mx-auto leading-relaxed">
-            Farm360 combines satellite imagery, weather, and crop stage context to explain what is happening and what
-            the farmer should do next.
+            Farm360 combines satellite imagery, weather, and crop stage context to explain what is happening and what the farmer should do next.
           </p>
         </div>
 

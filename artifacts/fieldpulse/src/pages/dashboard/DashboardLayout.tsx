@@ -260,7 +260,7 @@ function DashboardShell({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <div className="flex-1 bg-white min-h-screen flex flex-col">
+      <div className="flex-1 min-w-0 bg-white min-h-screen flex flex-col overflow-hidden">
         <header className="px-6 pt-6 pb-5 border-b border-[#ECE8E1] flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 select-none sticky top-0 bg-white/95 backdrop-blur-md z-10">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#6B6B6B]">

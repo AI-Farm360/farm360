@@ -83,9 +83,7 @@ export default function HomePage() {
               className="font-sans font-bold text-5xl md:text-7xl leading-[1.05] tracking-tight text-white mb-6 max-w-3xl"
             >
               Know your field,{' '}
-              <span className="text-brand-green">act before</span>
-              <br />
-              <span className="text-brand-green">it costs you.</span>
+              <span className="text-brand-green">act before it costs you.</span>
             </motion.h1>
 
             {/* Sub-copy */}

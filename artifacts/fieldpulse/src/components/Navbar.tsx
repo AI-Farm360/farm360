@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, Landmark, ArrowRight } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 export default function Navbar() {
@@ -8,54 +8,44 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
 
   const navLinks = [
-    { name: 'Features', path: '#features', isAnchor: true },
-    { name: 'How It Works', path: '#how-it-works', isAnchor: true },
+    { name: 'Home', path: '/', isAnchor: false },
+    { name: 'Dashboard', path: '/dashboard?demo=true', isAnchor: false },
+    { name: 'Register field', path: '/register', isAnchor: false },
     { name: 'Feedback', path: '/feedback', isAnchor: false },
   ];
 
   const handleLinkClick = (link: { name: string; path: string; isAnchor: boolean }) => {
     setIsOpen(false);
-    if (link.isAnchor) {
-      if (pathname !== '/') {
-        navigate('/');
-        setTimeout(() => {
-          const el = document.getElementById(link.path.substring(1));
-          if (el) el.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
-      } else {
-        const el = document.getElementById(link.path.substring(1));
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-      }
-    } else {
-      navigate(link.path);
-    }
+    navigate(link.path);
   };
 
   return (
-    <div className="w-full flex justify-center sticky top-4 z-50 px-4 md:px-0">
-      <nav className="w-full max-w-4xl bg-brand-card/60 backdrop-blur-xl border border-brand-border/80 rounded-full py-2.5 px-4 md:px-6 flex items-center justify-between shadow-[0_8px_30px_rgb(23,23,23,0.04)]">
+    <div className="w-full flex justify-center sticky top-0 z-50 px-0">
+      <nav className="w-full bg-white/95 backdrop-blur-sm border-b border-brand-border py-3 px-6 md:px-10 flex items-center justify-between shadow-sm">
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 cursor-pointer group transition-all"
+          className="flex items-center gap-2.5 cursor-pointer group"
           id="nav-logo"
         >
-          <div className="p-1.5 bg-brand-green/10 text-brand-green rounded-full group-hover:bg-brand-green group-hover:text-white transition-all duration-300">
-            <Landmark className="w-4 h-4" />
+          <div className="w-8 h-8 bg-brand-dark-green rounded-full flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
+            </svg>
           </div>
-          <span className="font-sans font-bold text-base tracking-tight text-brand-text">
-            Farm360
+          <span className="font-sans font-bold text-base tracking-tight text-brand-dark-green">
+            Farm360 <span className="text-brand-green">FieldPulse</span>
           </span>
         </button>
 
-        <div className="hidden md:flex items-center gap-6">
+        <div className="hidden md:flex items-center gap-1">
           {navLinks.map((link) => (
             <button
               key={link.name}
               onClick={() => handleLinkClick(link)}
-              className={`text-xs font-medium cursor-pointer transition-colors duration-200 ${
-                pathname === link.path
-                  ? 'text-brand-green font-semibold'
-                  : 'text-brand-muted hover:text-brand-text'
+              className={`text-sm font-medium px-4 py-2 rounded-full cursor-pointer transition-all duration-200 ${
+                pathname === link.path || (link.path === '/dashboard?demo=true' && pathname.startsWith('/dashboard'))
+                  ? 'bg-brand-light-green text-brand-dark-green font-semibold'
+                  : 'text-brand-muted hover:text-brand-dark-green hover:bg-gray-50'
               }`}
             >
               {link.name}
@@ -63,14 +53,13 @@ export default function Navbar() {
           ))}
         </div>
 
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden md:flex items-center">
           <button
             onClick={() => navigate('/register')}
-            className="text-xs bg-brand-text text-brand-bg hover:bg-brand-muted px-4 py-2 rounded-full font-medium tracking-tight transition-all duration-200 shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:shadow-none flex items-center gap-1 cursor-pointer active:scale-95"
+            className="text-sm bg-brand-dark-green text-white hover:bg-brand-green px-5 py-2 rounded-full font-semibold transition-all duration-200 cursor-pointer active:scale-95"
             id="nav-cta"
           >
-            Register Farm
-            <ArrowRight className="w-3.5 h-3.5" />
+            Get started
           </button>
         </div>
 
@@ -92,31 +81,26 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
             transition={{ duration: 0.2 }}
-            className="absolute top-18 left-4 right-4 bg-brand-card border border-brand-border rounded-3xl p-6 shadow-xl flex flex-col gap-4 z-40 md:hidden"
+            className="absolute top-14 left-4 right-4 bg-white border border-brand-border rounded-3xl p-6 shadow-xl flex flex-col gap-4 z-40 md:hidden"
           >
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <button
                   key={link.name}
                   onClick={() => handleLinkClick(link)}
-                  className={`text-left text-sm py-2 px-1 font-medium border-b border-brand-bg transition-colors ${
-                    pathname === link.path ? 'text-brand-green' : 'text-brand-muted'
+                  className={`text-left text-sm py-2.5 px-3 font-medium rounded-xl transition-colors ${
+                    pathname === link.path ? 'text-brand-green bg-brand-light-green' : 'text-brand-muted hover:text-brand-dark-green hover:bg-gray-50'
                   }`}
                 >
                   {link.name}
                 </button>
               ))}
             </div>
-
             <button
-              onClick={() => {
-                setIsOpen(false);
-                navigate('/register');
-              }}
-              className="w-full text-center py-3 bg-brand-text text-brand-bg hover:bg-brand-muted rounded-2xl font-medium text-xs tracking-tight transition-all duration-200 flex items-center justify-center gap-1.5"
+              onClick={() => { setIsOpen(false); navigate('/register'); }}
+              className="w-full text-center py-3 bg-brand-dark-green text-white hover:bg-brand-green rounded-2xl font-semibold text-sm transition-all duration-200"
             >
-              Register Farm
-              <ArrowRight className="w-4 h-4" />
+              Get started
             </button>
           </motion.div>
         )}

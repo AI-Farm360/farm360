@@ -18,10 +18,10 @@ export default function SectionTitle({ title, italicText, subtitle, centered = t
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       className={`max-w-2xl ${centered ? 'text-center mx-auto' : 'text-left'} space-y-3 mb-12`}
     >
-      <h2 className="font-serif text-3xl md:text-4xl text-brand-text leading-tight tracking-tight">
+      <h2 className="font-sans font-bold text-3xl md:text-4xl text-brand-dark-green leading-tight tracking-tight">
         {title}{' '}
         {italicText && (
-          <span className="serif-italic block sm:inline font-light text-brand-muted italic mt-1 sm:mt-0">
+          <span className="serif-italic text-brand-green">
             {italicText}
           </span>
         )}

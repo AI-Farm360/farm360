@@ -1,0 +1,6 @@
+{
+  "name": "Developer Workspace Hub",
+  "description": "A restored developer workspace featuring live dependency monitoring, workspace inspection tools, and a server-side Gemini conversational partner.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

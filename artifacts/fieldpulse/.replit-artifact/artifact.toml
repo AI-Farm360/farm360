@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "FieldPulse"
+version = "1.0.0"
+id = "artifacts/fieldpulse"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24796
+
+[services.development]
+run = "pnpm --filter @workspace/fieldpulse run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/fieldpulse", "run", "build" ]
+publicDir = "artifacts/fieldpulse/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24796"
+BASE_PATH = "/"

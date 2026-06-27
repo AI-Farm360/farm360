@@ -5,7 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { motion } from 'motion/react';
-import { User, Phone, MapPin } from 'lucide-react';
+import { User, MapPin } from 'lucide-react';
+import { createField } from '@/lib/api';
 import LocationCard from './LocationCard';
 import SatellitePreviewCard from './SatellitePreviewCard';
 import Select from './Select';
@@ -61,20 +62,23 @@ export default function RegistrationForm({ onSubmitSuccess }: RegistrationFormPr
   const variety = watch('variety');
   const farmSize = watch('farmSize');
 
-  const onSubmit = (data: any) => {
+  const onSubmit = async (data: any) => {
     const lat = parseFloat(data.latitude) || -0.2643;
     const lng = parseFloat(data.longitude) || 36.3789;
     const latOffset = 0.001;
     const lngOffset = 0.001 / Math.cos((lat * Math.PI) / 180);
-    const boundary = [
-      [lat + latOffset, lng - lngOffset],
-      [lat + latOffset, lng + lngOffset],
-      [lat - latOffset, lng + lngOffset],
-      [lat - latOffset, lng - lngOffset],
+
+    // GeoJSON boundary: [lng, lat] pairs (closed ring)
+    const boundary: [number, number][] = [
+      [lng - lngOffset, lat + latOffset],
+      [lng + lngOffset, lat + latOffset],
+      [lng + lngOffset, lat - latOffset],
+      [lng - lngOffset, lat - latOffset],
+      [lng - lngOffset, lat + latOffset],
     ];
 
-    localStorage.setItem('fieldpulse_registration', JSON.stringify({
-      id: "farmer-001",
+    const registrationData = {
+      id: 'farmer-001',
       name: data.name,
       phone: data.phone,
       county: data.county,
@@ -87,9 +91,38 @@ export default function RegistrationForm({ onSubmitSuccess }: RegistrationFormPr
       latitude: String(lat),
       longitude: String(lng),
       boundary,
-      notes: data.notes || ''
-    }));
+      notes: data.notes || '',
+    };
+    localStorage.setItem('fieldpulse_registration', JSON.stringify(registrationData));
+
     setStep('preview');
+
+    // Fire backend field creation in parallel with the animation — no blocking
+    createField({
+      farmer_name: data.name,
+      farmer_phone: data.phone,
+      boundary,
+      planting_date: data.plantingDate,
+      potato_variety: data.variety,
+      location: { lat, lng, county: data.county },
+    })
+      .then((created) => {
+        // Store the real backend ID so the dashboard can find this field
+        localStorage.setItem('fieldpulse_backend_field_id', created.id);
+        const stored = localStorage.getItem('fieldpulse_registration');
+        if (stored) {
+          try {
+            localStorage.setItem(
+              'fieldpulse_registration',
+              JSON.stringify({ ...JSON.parse(stored), id: created.id, backendFieldId: created.id })
+            );
+          } catch { /* ignore */ }
+        }
+      })
+      .catch(() => {
+        // Backend unavailable — localStorage-only mode, DashboardContext will seed on load
+      });
+
     setTimeout(() => { setStep('submitted'); setTimeout(() => onSubmitSuccess(), 2500); }, 1800);
   };
 

@@ -63,6 +63,14 @@ export default defineConfig({
     strictPort: true,
     host: "0.0.0.0",
     allowedHosts: true,
+    proxy: {
+      // AI chat endpoint → Node.js api-server (port 8080)
+      "/api/chat": { target: "http://localhost:8080", changeOrigin: true },
+      "/api/healthz": { target: "http://localhost:8080", changeOrigin: true },
+      // All other /api/* routes + /health → Python FastAPI backend (port 8000)
+      "/api": { target: "http://localhost:8000", changeOrigin: true },
+      "/health": { target: "http://localhost:8000", changeOrigin: true },
+    },
     fs: {
       strict: true,
     },

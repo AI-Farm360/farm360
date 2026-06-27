@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useLocation } from 'wouter';
 import * as mock from '@/data/mockData';
+import * as api from '@/lib/api';
+import type { BackendAdvisory, BackendMonitoring } from '@/lib/api';
 import type { NotificationResponse, NotificationStatus } from '@/data/apiContract';
 
 export interface FieldSummary {
@@ -45,9 +47,19 @@ interface DashboardContextValue {
   unreadCount: number;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
+  // Live backend data
+  advisory: BackendAdvisory | null;
+  monitoring: BackendMonitoring | null;
+  isBackendLive: boolean;
+  backendFieldId: string | null;
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
+
+const defaultFields: FieldSummary[] = [
+  { id: 'field-001', name: 'Nyandarua Shangi Field', county: 'Nyandarua', subCounty: 'Ol Kalou', ward: 'Kaimbaga', variety: 'Shangi', plantingDate: '2026-05-12', farmSize: 3.5, status: 'Healthy', riskScore: 24, confidence: 91, rainfall: 12 },
+  { id: 'field-002', name: 'Meru Potato Block B', county: 'Meru', subCounty: 'Buuri', ward: 'Ruiri/Rwarera', variety: 'Dutch Robyjn', plantingDate: '2026-04-10', farmSize: 2.2, status: 'Healthy', riskScore: 15, confidence: 88, rainfall: 8 },
+];
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [, navigate] = useLocation();
@@ -62,9 +74,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [showWhatsNew, setShowWhatsNew] = useState<boolean>(false);
   const [showAddField, setShowAddField] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
-
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
 
+  // Live backend state
+  const [advisory, setAdvisory] = useState<BackendAdvisory | null>(null);
+  const [monitoring, setMonitoring] = useState<BackendMonitoring | null>(null);
+  const [isBackendLive, setIsBackendLive] = useState(false);
+  const [backendFieldId, setBackendFieldId] = useState<string | null>(null);
+
+  // Notifications (localStorage-backed with mock seed)
   useEffect(() => {
     const stored = localStorage.getItem('fieldpulse_notifications');
     if (stored) {
@@ -91,11 +109,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setNotifications((prev) => prev.map((n) => ({ ...n, status: 'read' as NotificationStatus })));
   }, []);
 
-  const defaultFields: FieldSummary[] = [
-    { id: "field-001", name: "Nyandarua Shangi Field", county: "Nyandarua", subCounty: "Ol Kalou", ward: "Kaimbaga", variety: "Shangi", plantingDate: "2026-05-12", farmSize: 3.5, status: "Healthy", riskScore: 24, confidence: 91, rainfall: 12 },
-    { id: "field-002", name: "Meru Potato Block B", county: "Meru", subCounty: "Buuri", ward: "Ruiri/Rwarera", variety: "Dutch Robyjn", plantingDate: "2026-04-10", farmSize: 2.2, status: "Healthy", riskScore: 15, confidence: 88, rainfall: 8 }
-  ];
-
+  // Redirect to /register if not in demo mode and no registration
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const demo = params.get('demo') === 'true';
@@ -107,20 +121,29 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [navigate]);
 
+  // Load local fields from localStorage + defaults
   useEffect(() => {
     const storedData = localStorage.getItem('fieldpulse_registration');
     const fieldsList = [...defaultFields];
     if (storedData) {
       try {
         const parsed = JSON.parse(storedData);
-        const farmerFieldId = "farmer-001";
-        const exists = fieldsList.some(f => f.id === farmerFieldId);
+        const farmerFieldId = 'farmer-001';
+        const exists = fieldsList.some((f) => f.id === farmerFieldId);
         if (!exists) {
           fieldsList.unshift({
-            id: farmerFieldId, name: `${parsed.county} ${parsed.variety} Field`,
-            county: parsed.county, subCounty: parsed.subCounty, ward: parsed.ward,
-            variety: parsed.variety, plantingDate: parsed.plantingDate || "2026-05-12",
-            farmSize: Number(parsed.farmSize) || 3.5, status: "Healthy", riskScore: 24, confidence: 91, rainfall: 12
+            id: farmerFieldId,
+            name: `${parsed.county} ${parsed.variety} Field`,
+            county: parsed.county,
+            subCounty: parsed.subCounty,
+            ward: parsed.ward,
+            variety: parsed.variety,
+            plantingDate: parsed.plantingDate || '2026-05-12',
+            farmSize: Number(parsed.farmSize) || 3.5,
+            status: 'Healthy',
+            riskScore: 24,
+            confidence: 91,
+            rainfall: 12,
           });
         }
       } catch (e) { console.error(e); }
@@ -128,6 +151,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setFields(fieldsList);
   }, []);
 
+  // Load farmer profile from localStorage
   useEffect(() => {
     const storedData = localStorage.getItem('fieldpulse_registration');
     if (storedData) {
@@ -135,7 +159,79 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const activeField = fields.find(f => f.id === selectedFieldId) || fields[0] || defaultFields[0];
+  // Connect to Python backend — check health, seed field, load advisory + monitoring
+  useEffect(() => {
+    let cancelled = false;
+
+    const init = async () => {
+      try {
+        await api.getHealth();
+        if (cancelled) return;
+        setIsBackendLive(true);
+
+        // Get or create a backend field
+        let backendFields = await api.listFields();
+        let fieldId: string;
+
+        if (backendFields.length === 0) {
+          const registration = localStorage.getItem('fieldpulse_registration');
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let reg: any = {};
+          try { reg = JSON.parse(registration || '{}'); } catch { /* use defaults */ }
+
+          const created = await api.createField({
+            farmer_name: reg.name || 'John Mwangi',
+            farmer_phone: reg.phone || '+254712345678',
+            boundary: [
+              [36.3789, -0.2643],
+              [36.3829, -0.2643],
+              [36.3829, -0.2683],
+              [36.3789, -0.2683],
+              [36.3789, -0.2643],
+            ],
+            planting_date: reg.plantingDate || '2026-05-12',
+            potato_variety: reg.variety || 'Shangi',
+            location: {
+              lat: parseFloat(reg.latitude || '-0.2643'),
+              lng: parseFloat(reg.longitude || '36.3789'),
+              county: reg.county || 'Nyandarua',
+            },
+          });
+          fieldId = created.id;
+          backendFields = [created];
+        } else {
+          fieldId = backendFields[0].id;
+        }
+
+        if (cancelled) return;
+        setBackendFieldId(fieldId);
+
+        // Fetch monitoring + advisory in parallel
+        const [monResult, advResult] = await Promise.allSettled([
+          api.getMonitoring(fieldId),
+          api.getLatestAdvisory(fieldId).catch(async () => api.analyzeField(fieldId)),
+        ]);
+
+        if (cancelled) return;
+        if (monResult.status === 'fulfilled') setMonitoring(monResult.value);
+        if (advResult.status === 'fulfilled') setAdvisory(advResult.value);
+
+        const now = new Date();
+        setLastAnalyzed(
+          now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+          ' · ' +
+          now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        );
+      } catch {
+        // Backend not available — silently fall back to mock data
+      }
+    };
+
+    init();
+    return () => { cancelled = true; };
+  }, []);
+
+  const activeField = fields.find((f) => f.id === selectedFieldId) || fields[0] || defaultFields[0];
 
   const showSuccessToast = useCallback((msg: string) => {
     setSyncSuccessMsg(msg);
@@ -145,21 +241,39 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const handleSync = useCallback(() => {
     setIsSyncing(true);
-    setTimeout(() => {
+    const doSync = async () => {
+      try {
+        if (backendFieldId) {
+          const mon = await api.getMonitoring(backendFieldId);
+          setMonitoring(mon);
+        }
+      } catch { /* stay on cached data */ }
       setIsSyncing(false);
-      const dateText = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + " · " + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      setLastAnalyzed(dateText);
-      showSuccessToast("Active satellite orbits calibrated!");
-    }, 1800);
-  }, [showSuccessToast]);
+      const now = new Date();
+      setLastAnalyzed(
+        now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+        ' · ' +
+        now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      );
+      showSuccessToast('Active satellite orbits calibrated!');
+    };
+    doSync();
+  }, [backendFieldId, showSuccessToast]);
 
   const handleAnalyze = useCallback(() => {
     setIsAnalyzing(true);
-    setTimeout(() => {
+    const doAnalyze = async () => {
+      try {
+        if (backendFieldId) {
+          const adv = await api.analyzeField(backendFieldId);
+          setAdvisory(adv);
+        }
+      } catch { /* stay on cached data */ }
       setIsAnalyzing(false);
-      showSuccessToast("Analysis complete!");
-    }, 2000);
-  }, [showSuccessToast]);
+      showSuccessToast('Analysis complete!');
+    };
+    doAnalyze();
+  }, [backendFieldId, showSuccessToast]);
 
   return (
     <DashboardContext.Provider value={{
@@ -177,6 +291,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       showSuccessToast,
       notifications, unreadCount,
       markNotificationRead, markAllNotificationsRead,
+      advisory, monitoring, isBackendLive, backendFieldId,
     }}>
       {children}
     </DashboardContext.Provider>

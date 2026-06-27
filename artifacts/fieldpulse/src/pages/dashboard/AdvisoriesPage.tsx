@@ -3,22 +3,52 @@ import { ThumbsUp } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useDashboard } from '@/contexts/DashboardContext';
 import * as mock from '@/data/mockData';
+import { riskTypeToTitle, riskTypeToTriggeredBy, scoreToSeverity } from '@/lib/api';
 import AdvisoryPriorityVisual from '@/components/AdvisoryPriorityVisual';
 import AIReasoningFlow from '@/components/AIReasoningFlow';
 import ChatBox from '@/components/ChatBox';
 
 export default function AdvisoriesPage() {
   const [, navigate] = useLocation();
-  const { activeField } = useDashboard();
+  const { advisory } = useDashboard();
+
+  // Derive display values — live from backend if available, else mock
+  const title = advisory ? riskTypeToTitle(advisory.risk_type) : mock.advisory.title;
+  const severity = advisory ? scoreToSeverity(advisory.risk_score) : mock.advisory.severity;
+  const recommendation = advisory ? advisory.recommended_action : mock.advisory.recommendation;
+  const confidence = advisory ? Math.round(advisory.confidence * 100) : mock.advisory.confidence;
+  const triggeredBy = advisory
+    ? riskTypeToTriggeredBy(advisory.risk_type, advisory.inputs.satellite, advisory.risk_score)
+    : mock.advisory.triggeredBy;
+
+  // Build history rows from live data or mock
+  type HistoryRow = { id: string; title: string; description: string; severity: 'Low' | 'Medium' | 'High'; confidence: number; date: string; status: string };
+  const historyRows: HistoryRow[] = advisory
+    ? [{
+        id: advisory.id,
+        title: riskTypeToTitle(advisory.risk_type),
+        description: advisory.message,
+        severity: scoreToSeverity(advisory.risk_score),
+        confidence: Math.round(advisory.confidence * 100),
+        date: new Date(advisory.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        status: 'Delivered',
+      }]
+    : mock.historicalAdvisories;
+
+  const sevColors: Record<string, string> = {
+    Low: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    Medium: 'bg-amber-50 text-amber-700 border-amber-200',
+    High: 'bg-rose-50 text-rose-700 border-rose-200',
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <AdvisoryPriorityVisual
-        title={mock.advisory.title}
-        severity={mock.advisory.severity}
-        recommendation={mock.advisory.recommendation}
-        confidence={mock.advisory.confidence}
-        triggeredBy={mock.advisory.triggeredBy}
+        title={title}
+        severity={severity}
+        recommendation={recommendation}
+        confidence={confidence}
+        triggeredBy={triggeredBy}
       />
 
       <AIReasoningFlow />
@@ -41,25 +71,22 @@ export default function AdvisoriesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ECE8E1]">
-            {mock.historicalAdvisories.map((h) => {
-              const sevColors: Record<string, string> = { Low: 'bg-emerald-50 text-emerald-700 border-emerald-200', Medium: 'bg-amber-50 text-amber-700 border-amber-200', High: 'bg-rose-50 text-rose-700 border-rose-200' };
-              return (
-                <tr key={h.id} className="hover:bg-[#FAF9F6]/40 transition-colors">
-                  <td className="py-3.5 px-5">
-                    <span className="font-bold text-[#171717]">{h.title}</span>
-                    <p className="text-[10px] text-[#6B6B6B] mt-0.5">{h.description}</p>
-                  </td>
-                  <td className="py-3.5 px-5">
-                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${sevColors[h.severity] || sevColors.Low}`}>{h.severity}</span>
-                  </td>
-                  <td className="py-3.5 px-5 font-mono text-[#171717]">{h.confidence}%</td>
-                  <td className="py-3.5 px-5 text-[#6B6B6B]">{h.date}</td>
-                  <td className="py-3.5 px-5">
-                    <span className="text-[10px] font-bold text-brand-green bg-brand-light-green/40 px-2 py-0.5 rounded-full border border-brand-green/20">{h.status}</span>
-                  </td>
-                </tr>
-              );
-            })}
+            {historyRows.map((h) => (
+              <tr key={h.id} className="hover:bg-[#FAF9F6]/40 transition-colors">
+                <td className="py-3.5 px-5">
+                  <span className="font-bold text-[#171717]">{h.title}</span>
+                  <p className="text-[10px] text-[#6B6B6B] mt-0.5">{h.description}</p>
+                </td>
+                <td className="py-3.5 px-5">
+                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${sevColors[h.severity] || sevColors.Low}`}>{h.severity}</span>
+                </td>
+                <td className="py-3.5 px-5 font-mono text-[#171717]">{h.confidence}%</td>
+                <td className="py-3.5 px-5 text-[#6B6B6B]">{h.date}</td>
+                <td className="py-3.5 px-5">
+                  <span className="text-[10px] font-bold text-brand-green bg-brand-light-green/40 px-2 py-0.5 rounded-full border border-brand-green/20">{h.status}</span>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

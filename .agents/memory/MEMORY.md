@@ -1,0 +1,2 @@
+- [Vite proxy for backend routing](vite-proxy-backend.md) — all /api/* calls must go through Vite dev proxy to reach Python backend (port 8000) from the browser
+- [Python backend workflow binding](python-workflow-host.md) — uvicorn must bind to 0.0.0.0 not 127.0.0.1 or Replit workflow port-check fails
